@@ -4424,27 +4424,53 @@ function StructuredReportDisplay({ report, dataSource, confidence }: {
     const plotWidth = chartWidth - padding.left - padding.right
     const plotHeight = chartHeight - padding.top - padding.bottom
     
-    // X-axis: Binding Affinity (ΔG) - REVERSED so more negative (better) is on the RIGHT
-    // Y-axis: SA Score - REVERSED so lower (better) is at the TOP
-    // This puts the winning molecule (best binding + best SA) in the TOP-RIGHT quadrant
-    const xValues = allCandidates.map(c => c.binding_affinity || 0)
-    const yValues = allCandidates.map(c => c.sa_score || 0)
+    // Robust numeric parsing
+    const toNum = (v: any): number => {
+      if (typeof v === "number") return v
+      if (typeof v === "string") {
+        const n = parseFloat(v)
+        return Number.isFinite(n) ? n : NaN
+      }
+      return NaN
+    }
+    const parsed = allCandidates.map(c => ({
+      ...c,
+      x: toNum(c.binding_affinity),
+      y: toNum(c.sa_score),
+    }))
+    const numericPoints = parsed.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
     
-    const xMin = Math.min(...xValues) - 1  // Most negative (best)
-    const xMax = Math.max(...xValues) + 1  // Least negative (worst)
-    const yMin = 0
-    const yMax = Math.max(...yValues, 8) + 1
+    // Axis ranges from numeric data only; sensible defaults if none
+    let xMin: number, xMax: number, yMin: number, yMax: number
+    if (numericPoints.length > 0) {
+      const xs = numericPoints.map(p => p.x as number)
+      const ys = numericPoints.map(p => p.y as number)
+      const xMinRaw = Math.min(...xs)
+      const xMaxRaw = Math.max(...xs)
+      const yMinRaw = Math.min(...ys)
+      const yMaxRaw = Math.max(...ys)
+      // Add small padding
+      const xPad = Math.max(0.5, (xMaxRaw - xMinRaw) * 0.08)
+      const yPad = Math.max(0.5, (yMaxRaw - yMinRaw) * 0.08)
+      xMin = xMinRaw - xPad
+      xMax = xMaxRaw + xPad
+      yMin = yMinRaw - yPad
+      yMax = yMaxRaw + yPad
+    } else {
+      // Fallback default ranges
+      xMin = -10
+      xMax = -4
+      yMin = 0
+      yMax = 10
+    }
     
-    // REVERSED X-axis: more negative values (better binding) go to the RIGHT
-    const scaleX = (val: number) => padding.left + ((xMax - val) / (xMax - xMin)) * plotWidth
-    // Y-axis: lower SA scores (better) go to the TOP (standard SVG: y=0 is top, so lower values = smaller y-coordinate)
-    // We want: yMin at TOP (small y-coord), yMax at BOTTOM (large y-coord)
-    const scaleY = (val: number) => padding.top + ((val - yMin) / (yMax - yMin)) * plotHeight
+    // REVERSED X-axis: more negative (better) to the RIGHT
+    const scaleX = (val: number) => padding.left + ((xMax - val) / Math.max(1e-6, (xMax - xMin))) * plotWidth
+    // Y-axis: lower SA (better) at TOP
+    const scaleY = (val: number) => padding.top + ((val - yMin) / Math.max(1e-6, (yMax - yMin))) * plotHeight
     
     // Generate axis ticks
-    // X-axis: show from least negative (left) to most negative (right) - but ticks are positioned by scaleX
     const xTicks = Array.from({ length: 5 }, (_, i) => xMax - (i / 4) * (xMax - xMin))
-    // Y-axis: show from yMax at bottom to yMin at top - ticks positioned by scaleY
     const yTicks = Array.from({ length: 5 }, (_, i) => yMin + (i / 4) * (yMax - yMin))
     
     return (
@@ -4519,23 +4545,36 @@ function StructuredReportDisplay({ report, dataSource, confidence }: {
             </text>
             
             {/* Data points */}
-            {allCandidates.map((candidate, idx) => {
-              const x = scaleX(candidate.binding_affinity || 0)
-              const y = scaleY(candidate.sa_score || 0)
+            {parsed.map((candidate, idx) => {
+              const isNumeric = Number.isFinite(candidate.x) && Number.isFinite(candidate.y)
               // Winner = blue, Selected = purple, Rejected = bright gray
               const pointColor = candidate.category === "winner" ? "#60a5fa" 
                 : candidate.category === "selected" ? "#8b5cf6" 
                 : "#cbd5e1"
               const pointSize = candidate.category === "winner" ? 8 : 6
+              
+              // For missing values, place hollow dashed marker at axis edges:
+              // - Missing ΔG (x): place at left (worst) → xMax in reversed scale
+              // - Missing SA (y): place at bottom (worst) → yMax
+              const px = Number.isFinite(candidate.x) ? scaleX(candidate.x as number) : scaleX(xMax)
+              const py = Number.isFinite(candidate.y) ? scaleY(candidate.y as number) : scaleY(yMax)
+              
               return (
                 <g key={idx}>
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={pointSize}
-                    fill={pointColor}
-                  />
-                  <text x={x} y={y - 12} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))" fontWeight="500">
+                  {isNumeric ? (
+                    <circle cx={px} cy={py} r={pointSize} fill={pointColor} />
+                  ) : (
+                    <circle
+                      cx={px}
+                      cy={py}
+                      r={pointSize}
+                      fill="none"
+                      stroke={pointColor}
+                      strokeDasharray="3,3"
+                      strokeWidth="2"
+                    />
+                  )}
+                  <text x={px} y={py - 12} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))" fontWeight="500">
                     {candidate.scenario_id?.replace("scenario_", "S")}
                   </text>
                 </g>
