@@ -17,6 +17,8 @@ export const dynamic = "force-dynamic"
 // Google Sheets configuration
 // Public SimuLab sheet: https://docs.google.com/spreadsheets/d/17bd4GhtN66ekoWxff1qaGNa_SWuYPThR6zgEu215ZWQ/edit
 const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "17bd4GhtN66ekoWxff1qaGNa_SWuYPThR6zgEu215ZWQ";
+const SHEET_TAB = process.env.SIMULAB_GOOGLE_SHEET_TAB || "Sheet1";
+const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "0";
 const GOOGLE_CREDENTIALS_JSON = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const GOOGLE_API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
 
@@ -190,7 +192,8 @@ async function getAllScenariosWithServiceAccount(): Promise<SheetScenario[]> {
     const accessToken = await getGoogleAccessToken(credentials);
     console.log("[SimuLab/Sheets] Got access token");
 
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:J`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_TAB)}!A:Z`;
+    console.log(`[SimuLab/Sheets] Service account read: tab='${SHEET_TAB}', range='A:Z'`);
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -221,7 +224,8 @@ async function getAllScenariosWithApiKey(): Promise<SheetScenario[]> {
   try {
     console.log("[SimuLab/Sheets] Using API key for public sheet access");
 
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:J?key=${GOOGLE_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_TAB)}!A:Z?key=${GOOGLE_API_KEY}`;
+    console.log(`[SimuLab/Sheets] API key read: tab='${SHEET_TAB}', range='A:Z'`);
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -247,7 +251,7 @@ async function getAllScenariosPublicCSV(): Promise<SheetScenario[]> {
     console.log("[SimuLab/Sheets] Attempting public CSV export (no auth)...");
     
     // Google Sheets public CSV export URL
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${encodeURIComponent(SHEET_GID)}`;
     
     console.log(`[SimuLab/Sheets] Fetching: ${csvUrl}`);
     
