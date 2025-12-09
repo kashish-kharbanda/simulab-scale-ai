@@ -203,7 +203,7 @@ export const SHEET_DATA: SheetScenario[] = [
  * Get all scenarios from the database
  */
 export function getAllScenarios(): SheetScenario[] {
-  return SHEET_DATA;
+  return SHEET_CACHE && SHEET_CACHE.length > 0 ? SHEET_CACHE : SHEET_DATA;
 }
 
 /**
@@ -211,7 +211,8 @@ export function getAllScenarios(): SheetScenario[] {
  */
 export function getScenariosByProteinTarget(proteinTarget: string): SheetScenario[] {
   const targetLower = proteinTarget.toLowerCase().trim();
-  return SHEET_DATA.filter(s => 
+  const src = getAllScenarios();
+  return src.filter(s => 
     s.protein_target.toLowerCase().includes(targetLower) ||
     targetLower.includes(s.protein_target.toLowerCase())
   );
@@ -221,14 +222,16 @@ export function getScenariosByProteinTarget(proteinTarget: string): SheetScenari
  * Get unique protein targets
  */
 export function getUniqueProteinTargets(): string[] {
-  return Array.from(new Set(SHEET_DATA.map(s => s.protein_target)));
+  const src = getAllScenarios();
+  return Array.from(new Set(src.map(s => s.protein_target)));
 }
 
 /**
  * Find scenario by SMILES string
  */
 export function findScenarioBySmiles(smiles: string): SheetScenario | null {
-  return SHEET_DATA.find(s => s.smiles.trim() === smiles.trim()) || null;
+  const src = getAllScenarios();
+  return src.find(s => s.smiles.trim() === smiles.trim()) || null;
 }
 
 /**
@@ -236,9 +239,117 @@ export function findScenarioBySmiles(smiles: string): SheetScenario | null {
  */
 export function findScenarioByScaffold(scaffold: string): SheetScenario | null {
   const scaffoldLower = scaffold.toLowerCase();
-  return SHEET_DATA.find(s => {
+  const src = getAllScenarios();
+  return src.find(s => {
     const dbScaffold = s.scaffold_hypothesis.toLowerCase();
     return scaffoldLower.includes(dbScaffold) || dbScaffold.includes(scaffoldLower);
   }) || null;
 }
+
+// -----------------------------------------------------------------------------
+// Best-effort live sheet loader (public CSV) with module-level cache
+// -----------------------------------------------------------------------------
+const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "1kerrtQn-1ka-iNpxB1r7eJD1BEMGtvTiJ-bQkhYm0-c";
+const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "2021329128";
+let SHEET_CACHE: SheetScenario[] | null = null;
+
+function parseFloatSafe(value: any): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return isNaN(num) ? null : num;
+}
+
+function parseBoolSafe(value: any): boolean | null {
+  if (value === null || value === undefined || value === "") return null;
+  const str = String(value).toLowerCase().trim();
+  if (str === "yes" || str === "true" || str === "1") return true;
+  if (str === "no" || str === "false" || str === "0") return false;
+  return null;
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+async function loadSheetCSV(): Promise<SheetScenario[]> {
+  try {
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${encodeURIComponent(SHEET_GID)}`;
+    const res = await fetch(csvUrl, { method: "GET", redirect: "follow", headers: { Accept: "text/csv,text/plain,*/*" } as any });
+    if (!res.ok) return [];
+    const text = await res.text();
+    if (!text || text.trim().startsWith("<")) return [];
+    const lines = text.split("\n").filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = parseCSVLine(lines[0]);
+    const findCol = (patterns: string[]) =>
+      headers.findIndex(h => patterns.some(p => h.toLowerCase().includes(p.toLowerCase())));
+    const colIndex = {
+      scenario_id: findCol(["scenario"]),
+      protein_target: findCol(["protein"]),
+      scaffold_hypothesis: findCol(["scaffold", "hypothesis"]),
+      smiles: findCol(["smiles"]),
+      pdb_id: findCol(["pdb"]),
+      binding_affinity: findCol(["affinity", "Δg", "dg", "delta g"]),
+      herg_flag: findCol(["herg"]),
+      sa_score: findCol(["sa score", "sa", "synthesis"]),
+      target_result: findCol(["final result", "target final", "result"]),
+      result_category: findCol(["category"]),
+    };
+    const scenarios: SheetScenario[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseCSVLine(lines[i]);
+      if (row.length === 0 || !row.some(cell => cell.trim())) continue;
+      const s: SheetScenario = {
+        scenario_id: row[colIndex.scenario_id] || `Scenario_${i}`,
+        protein_target: row[colIndex.protein_target] || "",
+        scaffold_hypothesis: row[colIndex.scaffold_hypothesis] || "",
+        smiles: row[colIndex.smiles] || "",
+        pdb_id: row[colIndex.pdb_id] || "",
+        reference_binding_affinity: parseFloatSafe(row[colIndex.binding_affinity]),
+        reference_herg_flag: parseBoolSafe(row[colIndex.herg_flag]),
+        reference_sa_score: parseFloatSafe(row[colIndex.sa_score]),
+        target_result: row[colIndex.target_result] || "",
+        result_category: row[colIndex.result_category] || "",
+      };
+      if (s.protein_target || s.smiles) scenarios.push(s);
+    }
+    return scenarios;
+  } catch {
+    return [];
+  }
+}
+
+// Kick off background load; non-blocking for API callers
+(async () => {
+  try {
+    const live = await loadSheetCSV();
+    if (live.length > 0) {
+      SHEET_CACHE = live;
+      // eslint-disable-next-line no-console
+      console.log(`[SimuLab/Sheets:data] Loaded ${live.length} rows from live sheet`);
+    }
+  } catch {
+    // ignore
+  }
+})();
 
