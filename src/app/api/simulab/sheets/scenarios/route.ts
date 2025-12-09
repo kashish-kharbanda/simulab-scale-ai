@@ -16,9 +16,9 @@ export const dynamic = "force-dynamic"
 
 // Google Sheets configuration
 // Public SimuLab sheet: https://docs.google.com/spreadsheets/d/17bd4GhtN66ekoWxff1qaGNa_SWuYPThR6zgEu215ZWQ/edit
-const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "1kerrtQn-1ka-iNpxB1r7eJD1BEMGtvTiJ-bQkhYm0-c";
-const SHEET_TAB = process.env.SIMULAB_GOOGLE_SHEET_TAB || "demo";
-const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "2021329128";
+const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "17bd4GhtN66ekoWxff1qaGNa_SWuYPThR6zgEu215ZWQ";
+const SHEET_TAB = process.env.SIMULAB_GOOGLE_SHEET_TAB || "Sheet1";
+const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "0";
 const GOOGLE_CREDENTIALS_JSON = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const GOOGLE_API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
 
@@ -50,8 +50,8 @@ function parseFloatSafe(value: any): number | null {
 function parseBoolSafe(value: any): boolean | null {
   if (value === null || value === undefined || value === "") return null;
   const str = String(value).toLowerCase().trim();
-  if (str === "yes" || str === "true" || str === "1") return true;
-  if (str === "no" || str === "false" || str === "0") return false;
+  if (str === "yes" || str === "true" || str === "1" || str === "unsafe" || str === "veto") return true;
+  if (str === "no" || str === "false" || str === "0" || str === "safe") return false;
   return null;
 }
 

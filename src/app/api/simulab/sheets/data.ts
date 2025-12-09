@@ -249,8 +249,8 @@ export function findScenarioByScaffold(scaffold: string): SheetScenario | null {
 // -----------------------------------------------------------------------------
 // Best-effort live sheet loader (public CSV) with module-level cache
 // -----------------------------------------------------------------------------
-const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "1kerrtQn-1ka-iNpxB1r7eJD1BEMGtvTiJ-bQkhYm0-c";
-const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "2021329128";
+const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "17bd4GhtN66ekoWxff1qaGNa_SWuYPThR6zgEu215ZWQ";
+const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "0";
 let SHEET_CACHE: SheetScenario[] | null = null;
 
 function parseFloatSafe(value: any): number | null {
@@ -262,8 +262,8 @@ function parseFloatSafe(value: any): number | null {
 function parseBoolSafe(value: any): boolean | null {
   if (value === null || value === undefined || value === "") return null;
   const str = String(value).toLowerCase().trim();
-  if (str === "yes" || str === "true" || str === "1") return true;
-  if (str === "no" || str === "false" || str === "0") return false;
+  if (str === "yes" || str === "true" || str === "1" || str === "unsafe" || str === "veto") return true;
+  if (str === "no" || str === "false" || str === "0" || str === "safe") return false;
   return null;
 }
 
