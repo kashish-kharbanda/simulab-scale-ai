@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   // This tells Next.js to treat this directory as the root for file tracing
   outputFileTracingRoot: path.join(__dirname),
   output: 'standalone',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

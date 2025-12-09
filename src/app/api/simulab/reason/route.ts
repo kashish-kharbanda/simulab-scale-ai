@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getScenariosByProteinTarget, findScenarioBySmiles, findScenarioByScaffold, SheetScenario } from "../sheets/data"
+import { getScenariosByProteinTarget, findScenarioBySmiles, findScenarioByScaffold, SheetScenario, ensureSheetLoaded } from "../sheets/data"
 import { generateVerdict, isDevMode, isAgentexConfigured, AGENTS, traceReportFeedback } from "@/lib/agent-client"
 
 /**
