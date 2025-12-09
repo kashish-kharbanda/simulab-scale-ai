@@ -144,12 +144,12 @@ function parseRows(rows: any[][]): SheetScenario[] {
   const colIndex = {
     scenario_id: findCol(["scenario"]),
     protein_target: findCol(["protein"]),
-    scaffold_hypothesis: findCol(["scaffold"]),
-    smiles: findCol(["smiles"]),
+    scaffold_hypothesis: findCol(["scaffold", "hypothesis"]),
+    smiles: findCol(["smiles", "smiles string"]),
     pdb_id: findCol(["pdb"]),
-    binding_affinity: findCol(["affinity", "ΔG"]),
-    herg_flag: findCol(["herg"]),
-    sa_score: findCol(["sa score", "cost"]),
+    binding_affinity: findCol(["affinity", "ΔG", "delta g"]),
+    herg_flag: findCol(["herg", "veto"]),
+    sa_score: findCol(["sa score", "sa", "cost"]),
     target_result: findCol(["final result", "target final"]),
     result_category: findCol(["category"]),
   };
