@@ -339,6 +339,20 @@ async function loadSheetCSV(): Promise<SheetScenario[]> {
   }
 }
 
+export async function ensureSheetLoaded(): Promise<void> {
+  if (!SHEET_CACHE || SHEET_CACHE.length === 0) {
+    const live = await loadSheetCSV();
+    if (live.length > 0) {
+      SHEET_CACHE = live;
+      // eslint-disable-next-line no-console
+      console.log(`[SimuLab/Sheets:data] ensureSheetLoaded: ${live.length} rows loaded`);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn("[SimuLab/Sheets:data] ensureSheetLoaded: live sheet empty, using snapshot");
+    }
+  }
+}
+
 // Kick off background load; non-blocking for API callers
 (async () => {
   try {

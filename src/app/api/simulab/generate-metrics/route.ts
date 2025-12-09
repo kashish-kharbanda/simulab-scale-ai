@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getScenariosByProteinTarget, findScenarioBySmiles, findScenarioByScaffold, SheetScenario } from "../sheets/data"
+import { getScenariosByProteinTarget, findScenarioBySmiles, findScenarioByScaffold, SheetScenario, ensureSheetLoaded } from "../sheets/data"
 import { evaluateMolecules, isDevMode, isAgentexConfigured, AGENTS } from "@/lib/agent-client"
 
 /**
@@ -423,6 +423,9 @@ export async function POST(request: NextRequest) {
     // FALLBACK: Local LLM processing (no tracing)
     // =========================================================================
     const results: ScenarioResult[] = [];
+
+    // Ensure live sheet is loaded before matching
+    await ensureSheetLoaded();
 
     for (const scenario of scenarios) {
       console.log(`[Simulator] Processing ${scenario.scenario_id}: ${scenario.scaffold}`);

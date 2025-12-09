@@ -460,6 +460,8 @@ export async function POST(request: NextRequest) {
       verdictSource = "heuristic";
     }
 
+    // Ensure live sheet is loaded before cross-check
+    await ensureSheetLoaded();
     const { verdict, wasOverridden, corrections } = crossCheckVerdictWithDatabase(
       llmVerdict,
       scenarios,
