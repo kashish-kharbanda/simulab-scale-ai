@@ -250,7 +250,7 @@ export function findScenarioByScaffold(scaffold: string): SheetScenario | null {
 // Best-effort live sheet loader (public CSV) with module-level cache
 // -----------------------------------------------------------------------------
 const SHEET_ID = process.env.SIMULAB_GOOGLE_SHEET_ID || "17bd4GhtN66ekoWxff1qaGNa_SWuYPThR6zgEu215ZWQ";
-const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "0";
+const SHEET_GID = process.env.SIMULAB_GOOGLE_SHEET_GID || "2021329128";
 let SHEET_CACHE: SheetScenario[] | null = null;
 
 function parseFloatSafe(value: any): number | null {
