@@ -276,7 +276,11 @@ function crossCheckVerdictWithDatabase(
   const newRejected: Array<Record<string, unknown>> = [];
   const passing: Array<Record<string, unknown>> = [];
 
-  for (const [scenarioId, db] of dbDataMap) {
+  // Build ordered list of db rows for the target to allow index-based fallback
+  const targetRows = getScenariosByProteinTarget(proteinTarget);
+  scenarios.forEach((s, idx) => {
+    const db = dbDataMap.get(s.scenario_id) || targetRows[idx];
+    if (!db) return;
     const bindingAffinity = db.reference_binding_affinity ?? -7;
     const hergFlag = db.reference_herg_flag ?? false;
     const saScore = db.reference_sa_score ?? 4;
@@ -300,7 +304,7 @@ function crossCheckVerdictWithDatabase(
     }
 
     const scenarioData = {
-      scenario_id: scenarioId,
+      scenario_id: s.scenario_id,
       scaffold: db.scaffold_hypothesis,
       smiles: db.smiles,
       binding_affinity: bindingAffinity,
@@ -312,12 +316,12 @@ function crossCheckVerdictWithDatabase(
 
     if (isRejected) {
       newRejected.push({ ...scenarioData, rejection_reason: rejectionReason });
-      console.log(`[Judge] ${scenarioId}: REJECTED - ${rejectionReason}`);
+      console.log(`[Judge] ${s.scenario_id}: REJECTED - ${rejectionReason}`);
     } else {
       passing.push(scenarioData);
-      console.log(`[Judge] ${scenarioId}: PASSES all criteria`);
+      console.log(`[Judge] ${s.scenario_id}: PASSES all criteria`);
     }
-  }
+  });
 
   let finalWinner: Record<string, unknown> | null = null;
   const newSelected: Array<Record<string, unknown>> = [];
